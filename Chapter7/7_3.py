@@ -1,0 +1,126 @@
+# -*- coding:gbk -*-
+"""
+@Author: Victoria
+@Date: 2017.10.17 10:30
+"""
+import pandas as pd
+import math
+
+class LaplacianNB():
+    """
+    Laplacian naive bayes for binary classification problem.
+    """
+    def __init__(self):
+        """
+        """
+
+    def train(self, X, y):
+        """
+        Training laplacian naive bayes classifier with traning set (X, y).
+        Input:
+            X: list of instances. Each instance is represented by (è‰²æ³½ï¼Œæ ¹è’‚ï¼Œæ•²å£°ï¼Œæ–‡ç†ï¼Œè„éƒ¨ï¼Œè§¦æ„Ÿï¼Œå¯†åº¦ï¼Œå«ç³–çŽ‡)
+            y: list of labels. 0 represents bad, 1 represents good.
+        """
+        N = len(y)
+        self.classes = self.count_list(y)
+        self.class_num = len(self.classes)
+        self.classes_p = {}
+        #print self.classes
+        for c, n in self.classes.items():
+            self.classes_p[c] = float(n+1) / (N+self.class_num)
+
+        self.discrete_attris_with_good_p = []
+        self.discrete_attris_with_bad_p = []
+        for i in range(6):
+            attr_with_good = []
+            attr_with_bad = []
+            for j in range(N):
+                if y[j] == "ÊÇ":
+                     attr_with_good.append(X[j][i])
+                else:
+                    attr_with_bad.append(X[j][i])
+            unique_with_good = self.count_list(attr_with_good)
+            unique_with_bad = self.count_list(attr_with_bad)
+            self.discrete_attris_with_good_p.append(self.discrete_p(unique_with_good, self.classes["ÊÇ"]))
+            self.discrete_attris_with_bad_p.append(self.discrete_p(unique_with_bad, self.classes["·ñ"]))
+
+        self.good_mus = []
+        self.good_vars = []
+        self.bad_mus = []
+        self.bad_vars = []
+        for i in range(2):
+            attr_with_good = []
+            attr_with_bad = []
+            for j in range(N):
+                if y[j] == "ÊÇ":
+                    attr_with_good.append(X[j][i+6])
+                else:
+                    attr_with_bad.append(X[j][i+6])
+            good_mu, good_var = self.mu_var_of_list(attr_with_good)
+            bad_mu, bad_var = self.mu_var_of_list(attr_with_bad)
+            self.good_mus.append(good_mu)
+            self.good_vars.append(good_var)
+            self.bad_mus.append(bad_mu)
+            self.bad_vars.append(bad_var)
+
+    def predict(self, x):
+        """
+        """
+        p_good = self.classes_p["ÊÇ"]
+        p_bad = self.classes_p["·ñ"]
+        for i in range(6):
+            p_good  *= self.discrete_attris_with_good_p[i][x[i]]
+            p_bad *= self.discrete_attris_with_bad_p[i][x[i]]
+        for i in range(2):
+            p_good *= self.continuous_p(x[i+6], self.good_mus[i], self.good_vars[i])
+            p_bad *= self.continuous_p(x[i+6], self.bad_mus[i], self.bad_vars[i])
+        if p_good >= p_bad:
+            return p_good, p_bad, "ÊÇ"
+        else:
+            return p_good, p_bad, "·ñ"
+
+    def count_list(self, l):
+        """
+        Get unique elements in list and corresponding count.
+        """
+        unique_dict = {}
+        for e in l:
+            if e in unique_dict:
+                unique_dict[e] += 1
+            else:
+                unique_dict[e] = 1
+        return unique_dict
+
+
+    def discrete_p(self, d, N_class):
+        """
+        Compute discrete attribution probability based on {0:, 1:, 2: }.
+        """
+        new_d = {}
+        #print d
+        for a, n in d.items():
+            new_d[a] = float(n+1) / (N_class + len(d))
+        return new_d
+
+    def continuous_p(self, x, mu, var):
+        p = 1.0 / (math.sqrt(2*math.pi) * math.sqrt(var)) * math.exp(- (x-mu)**2 /(2*var))
+        return p
+
+    def mu_var_of_list(self, l):
+        mu = sum(l) / float(len(l))
+        var = 0
+        for i in range(len(l)):
+            var += (l[i]-mu)**2
+        var = var / float(len(l))
+        return mu, var
+
+if __name__=="__main__":
+    lnb = LaplacianNB()
+    workbook = pd.read_csv("../data/watermelon_3.csv", encoding="gb18030")
+    X = workbook.values[:, 1:9]
+    y = workbook.values[:, 9]
+    #print X, y
+    lnb.train(X, y)
+    #print lnb.discrete_attris_with_good_p
+    label = lnb.predict(["ÇàÂÌ", "òéËõ", "×ÇÏì", "ÇåÎú", "°¼ÏÝ", "Ó²»¬", 0.697, 0.460])
+    print ("predict ressult: ", label)
